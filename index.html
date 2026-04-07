@@ -193,6 +193,26 @@
       white-space: nowrap;
     }
 
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      pointer-events: none;
+      animation: confetti-fall 3s ease-out forwards;
+      z-index: 9999;
+    }
+
+    @keyframes confetti-fall {
+      0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+
     button {
       padding: 10px 20px;
       border: none;
@@ -378,6 +398,7 @@
       if (dueCount === 0 && total > 0) {
         progressFill.classList.add('complete');
         document.getElementById('progress-text').textContent = 'Bütün kartlar tamamlandı!';
+        fireConfetti();
       } else {
         progressFill.classList.remove('complete');
         document.getElementById('progress-text').textContent = `${completed}/${total} kart tamamlandı`;
@@ -386,6 +407,22 @@
 
     function saveProgress() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allWords));
+    }
+
+    function fireConfetti() {
+      const colors = ['#e53e3e', '#38a169', '#3182ce', '#dd6b20', '#9f7aea', '#ed64a6'];
+      for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.top = '-10px';
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+        confetti.style.animationDelay = Math.random() * 0.5 + 's';
+        document.body.appendChild(confetti);
+        setTimeout(() => confetti.remove(), 4000);
+      }
     }
   </script>
 </body>
