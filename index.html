@@ -148,8 +148,49 @@
 
     .stats {
       color: #a0aec0;
-      margin-top: 20px;
+      margin-top: 15px;
       font-size: 0.85rem;
+    }
+
+    .progress-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #2d3748;
+      padding: 20px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 24px;
+      background: #4a5568;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #3182ce;
+      transition: width 0.3s, background 0.3s;
+      border-radius: 12px;
+    }
+
+    .progress-fill.complete {
+      background: #38a169;
+    }
+
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      white-space: nowrap;
     }
 
     button {
@@ -209,6 +250,13 @@
   </div>
 
   <p class="stats" id="stats"></p>
+
+  <div class="progress-container">
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill"></div>
+      <span class="progress-text" id="progress-text"></span>
+    </div>
+  </div>
 
   <script>
     let allWords = [];
@@ -321,7 +369,19 @@
       const intervalText = card.interval > 0 ? `${card.interval}g` : 'yeni';
       const levelBadge = currentLevel ? ` | Seviye: ${currentLevel}` : '';
       document.getElementById('stats').textContent = 
-        `Kart ${currentIndex + 1}/${total} | Due: ${dueCount} | Aralık: ${intervalText}${levelBadge}`;
+        `Kart ${currentIndex + 1}/${total} | Aralık: ${intervalText}${levelBadge}`;
+
+      const completed = total - dueCount;
+      const percent = total > 0 ? (completed / total) * 100 : 0;
+      const progressFill = document.getElementById('progress-fill');
+      progressFill.style.width = percent + '%';
+      if (dueCount === 0 && total > 0) {
+        progressFill.classList.add('complete');
+        document.getElementById('progress-text').textContent = 'Bütün kartlar tamamlandı!';
+      } else {
+        progressFill.classList.remove('complete');
+        document.getElementById('progress-text').textContent = `${completed}/${total} kart tamamlandı`;
+      }
     }
 
     function saveProgress() {
