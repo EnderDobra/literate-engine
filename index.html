@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arapça-Türkçe Flashcard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #fff;
+      margin-bottom: 30px;
+      font-size: 1.8rem;
+    }
+
+    .card-container {
+      perspective: 1000px;
+      cursor: pointer;
+    }
+
+    .card {
+      width: 300px;
+      height: 200px;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.6s;
+    }
+
+    .card.flipped {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-front {
+      background: linear-gradient(145deg, #2d3561, #1e2243);
+      border: 2px solid #4a5568;
+    }
+
+    .card-front span {
+      color: #e2e8f0;
+      font-size: 2rem;
+      font-weight: 600;
+    }
+
+    .card-back {
+      background: linear-gradient(145deg, #2d3561, #1e2243);
+      border: 2px solid #4a5568;
+      transform: rotateY(180deg);
+    }
+
+    .card-back span {
+      color: #68d391;
+      font-size: 1.8rem;
+      font-weight: 600;
+    }
+
+    .hint {
+      color: #a0aec0;
+      margin-top: 20px;
+      font-size: 0.9rem;
+    }
+
+    .controls {
+      margin-top: 30px;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+    }
+
+    .rating-buttons {
+      display: none;
+      gap: 10px;
+    }
+
+    .rating-buttons.visible {
+      display: flex;
+    }
+
+    .btn-again {
+      background: #e53e3e;
+    }
+    .btn-again:hover {
+      background: #c53030;
+    }
+
+    .btn-hard {
+      background: #dd6b20;
+    }
+    .btn-hard:hover {
+      background: #c05621;
+    }
+
+    .btn-good {
+      background: #38a169;
+    }
+    .btn-good:hover {
+      background: #2f855a;
+    }
+
+    .btn-easy {
+      background: #3182ce;
+    }
+    .btn-easy:hover {
+      background: #2b6cb0;
+    }
+
+    .stats {
+      color: #a0aec0;
+      margin-top: 20px;
+      font-size: 0.85rem;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #4a5568;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #2d3748;
+    }
+  </style>
+</head>
+<body>
+  <h1>Arapça - Türkçe Kelime Kartları</h1>
+  
+  <div class="card-container" onclick="flipCard()">
+    <div class="card" id="flashcard">
+      <div class="card-face card-front">
+        <span id="arabic-text"></span>
+      </div>
+      <div class="card-face card-back">
+        <span id="turkish-text"></span>
+      </div>
+    </div>
+  </div>
+  
+  <p class="hint">Kartı çevirmek için tıklayın</p>
+  
+  <div class="controls">
+    <button onclick="previousCard()">← Önceki</button>
+    <button onclick="nextCard()">Sonraki →</button>
+  </div>
+
+  <div class="rating-buttons" id="rating-buttons">
+    <button class="btn-again" onclick="rateCard('again')">Tekrar (1g)</button>
+    <button class="btn-hard" onclick="rateCard('hard')">Zor (2g)</button>
+    <button class="btn-good" onclick="rateCard('good')">İyi (4g)</button>
+    <button class="btn-easy" onclick="rateCard('easy')">Kolay (7g)</button>
+  </div>
+
+  <p class="stats" id="stats"></p>
+
+  <script>
+    let words = [];
+    let currentIndex = 0;
+
+    const RATING_INTERVALS = {
+      again: 1,
+      hard: 2,
+      good: 4,
+      easy: 7
+    };
+
+    fetch('./data.json')
+      .then(response => response.json())
+      .then(data => {
+        words = data.map(w => ({
+          ...w,
+          easeFactor: 2.5,
+          interval: 0,
+          dueDate: 0,
+          reviews: 0
+        }));
+        loadProgress();
+        showNextDueCard();
+      })
+      .catch(error => console.error('Error loading words:', error));
+
+    function showNextDueCard() {
+      const now = Date.now();
+      const dueCard = words.find(w => w.dueDate <= now);
+      currentIndex = dueCard ? words.indexOf(dueCard) : 0;
+      showCard(currentIndex);
+    }
+
+    function showCard(index) {
+      document.getElementById('arabic-text').textContent = words[index].arabic;
+      document.getElementById('turkish-text').textContent = words[index].turkish;
+      document.getElementById('flashcard').classList.remove('flipped');
+      document.getElementById('rating-buttons').classList.remove('visible');
+      updateStats();
+    }
+
+    function flipCard() {
+      const card = document.getElementById('flashcard');
+      card.classList.toggle('flipped');
+      if (card.classList.contains('flipped')) {
+        document.getElementById('rating-buttons').classList.add('visible');
+      }
+    }
+
+    function rateCard(rating) {
+      const card = words[currentIndex];
+      const now = Date.now();
+      const dayMs = 24 * 60 * 60 * 1000;
+
+      if (rating === 'again') {
+        card.interval = 1;
+        card.easeFactor = Math.max(1.3, card.easeFactor - 0.2);
+      } else if (rating === 'hard') {
+        card.interval = Math.max(1, Math.round(card.interval * 1.2));
+        card.easeFactor = Math.max(1.3, card.easeFactor - 0.15);
+      } else if (rating === 'good') {
+        card.interval = card.interval === 0 ? 1 : Math.round(card.interval * card.easeFactor);
+      } else if (rating === 'easy') {
+        card.interval = card.interval === 0 ? 4 : Math.round(card.interval * card.easeFactor * 1.3);
+        card.easeFactor += 0.15;
+      }
+
+      card.dueDate = now + (card.interval * dayMs);
+      card.reviews++;
+      saveProgress();
+      showNextDueCard();
+    }
+
+    function nextCard() {
+      currentIndex = (currentIndex + 1) % words.length;
+      showCard(currentIndex);
+    }
+
+    function previousCard() {
+      currentIndex = (currentIndex - 1 + words.length) % words.length;
+      showCard(currentIndex);
+    }
+
+    function updateStats() {
+      const now = Date.now();
+      const dueCount = words.filter(w => w.dueDate <= now).length;
+      const total = words.length;
+      const card = words[currentIndex];
+      const intervalText = card.interval > 0 ? `${card.interval}g` : 'yeni';
+      document.getElementById('stats').textContent = 
+        `Kart ${currentIndex + 1}/${total} | Due: ${dueCount} | Aralık: ${intervalText} | Ease: ${card.easeFactor.toFixed(2)}`;
+    }
+
+    function saveProgress() {
+      localStorage.setItem('flashcard-progress', JSON.stringify(words));
+    }
+
+    function loadProgress() {
+      const saved = localStorage.getItem('flashcard-progress');
+      if (saved) {
+        const savedWords = JSON.parse(saved);
+        savedWords.forEach(savedCard => {
+          const card = words.find(w => w.arabic === savedCard.arabic && w.turkish === savedCard.turkish);
+          if (card) {
+            card.easeFactor = savedCard.easeFactor;
+            card.interval = savedCard.interval;
+            card.dueDate = savedCard.dueDate;
+            card.reviews = savedCard.reviews;
+          }
+        });
+      }
+    }
+  </script>
+</body>
+</html>
