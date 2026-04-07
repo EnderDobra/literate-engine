@@ -88,6 +88,20 @@
       font-size: 0.9rem;
     }
 
+    .level-select {
+      margin-bottom: 20px;
+    }
+
+    .level-select select {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid #4a5568;
+      background: #2d3561;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
     .controls {
       margin-top: 30px;
       display: flex;
@@ -157,6 +171,18 @@
 <body>
   <h1>Arapça - Türkçe Kelime Kartları</h1>
   
+  <div class="level-select">
+    <select id="level-filter" onchange="filterByLevel()">
+      <option value="">Tüm Seviyeler</option>
+      <option value="A1">A1</option>
+      <option value="A2">A2</option>
+      <option value="B1">B1</option>
+      <option value="B2">B2</option>
+      <option value="C1">C1</option>
+      <option value="C2">C2</option>
+    </select>
+  </div>
+  
   <div class="card-container" onclick="flipCard()">
     <div class="card" id="flashcard">
       <div class="card-face card-front">
@@ -185,41 +211,55 @@
   <p class="stats" id="stats"></p>
 
   <script>
-    let words = [];
+    let allWords = [];
+    let filteredWords = [];
     let currentIndex = 0;
+    let currentLevel = '';
 
-    const RATING_INTERVALS = {
-      again: 1,
-      hard: 2,
-      good: 4,
-      easy: 7
-    };
+    const STORAGE_KEY = 'flashcard-progress';
 
     fetch('./data.json')
       .then(response => response.json())
       .then(data => {
-        words = data.map(w => ({
-          ...w,
-          easeFactor: 2.5,
-          interval: 0,
-          dueDate: 0,
-          reviews: 0
-        }));
-        loadProgress();
-        showNextDueCard();
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        allWords = data.map(w => {
+          const savedCard = saved.find(s => s.arabic === w.arabic && s.turkish === w.turkish && s.level === w.level);
+          return savedCard ? { ...w, ...savedCard } : {
+            ...w,
+            easeFactor: 2.5,
+            interval: 0,
+            dueDate: 0,
+            reviews: 0
+          };
+        });
+        filterByLevel();
       })
       .catch(error => console.error('Error loading words:', error));
 
+    function filterByLevel() {
+      currentLevel = document.getElementById('level-filter').value;
+      filteredWords = currentLevel 
+        ? allWords.filter(w => w.level === currentLevel)
+        : [...allWords];
+      showNextDueCard();
+    }
+
     function showNextDueCard() {
+      if (filteredWords.length === 0) {
+        document.getElementById('arabic-text').textContent = 'Kelime yok';
+        document.getElementById('turkish-text').textContent = '';
+        document.getElementById('rating-buttons').classList.remove('visible');
+        return;
+      }
       const now = Date.now();
-      const dueCard = words.find(w => w.dueDate <= now);
-      currentIndex = dueCard ? words.indexOf(dueCard) : 0;
+      const dueCard = filteredWords.find(w => w.dueDate <= now);
+      currentIndex = dueCard ? filteredWords.indexOf(dueCard) : 0;
       showCard(currentIndex);
     }
 
     function showCard(index) {
-      document.getElementById('arabic-text').textContent = words[index].arabic;
-      document.getElementById('turkish-text').textContent = words[index].turkish;
+      document.getElementById('arabic-text').textContent = filteredWords[index].arabic;
+      document.getElementById('turkish-text').textContent = filteredWords[index].turkish;
       document.getElementById('flashcard').classList.remove('flipped');
       document.getElementById('rating-buttons').classList.remove('visible');
       updateStats();
@@ -234,7 +274,7 @@
     }
 
     function rateCard(rating) {
-      const card = words[currentIndex];
+      const card = filteredWords[currentIndex];
       const now = Date.now();
       const dayMs = 24 * 60 * 60 * 1000;
 
@@ -258,43 +298,34 @@
     }
 
     function nextCard() {
-      currentIndex = (currentIndex + 1) % words.length;
+      if (filteredWords.length === 0) return;
+      currentIndex = (currentIndex + 1) % filteredWords.length;
       showCard(currentIndex);
     }
 
     function previousCard() {
-      currentIndex = (currentIndex - 1 + words.length) % words.length;
+      if (filteredWords.length === 0) return;
+      currentIndex = (currentIndex - 1 + filteredWords.length) % filteredWords.length;
       showCard(currentIndex);
     }
 
     function updateStats() {
+      if (filteredWords.length === 0) {
+        document.getElementById('stats').textContent = 'Bu seviyede kelime yok';
+        return;
+      }
       const now = Date.now();
-      const dueCount = words.filter(w => w.dueDate <= now).length;
-      const total = words.length;
-      const card = words[currentIndex];
+      const dueCount = filteredWords.filter(w => w.dueDate <= now).length;
+      const total = filteredWords.length;
+      const card = filteredWords[currentIndex];
       const intervalText = card.interval > 0 ? `${card.interval}g` : 'yeni';
+      const levelBadge = currentLevel ? ` | Seviye: ${currentLevel}` : '';
       document.getElementById('stats').textContent = 
-        `Kart ${currentIndex + 1}/${total} | Due: ${dueCount} | Aralık: ${intervalText} | Ease: ${card.easeFactor.toFixed(2)}`;
+        `Kart ${currentIndex + 1}/${total} | Due: ${dueCount} | Aralık: ${intervalText}${levelBadge}`;
     }
 
     function saveProgress() {
-      localStorage.setItem('flashcard-progress', JSON.stringify(words));
-    }
-
-    function loadProgress() {
-      const saved = localStorage.getItem('flashcard-progress');
-      if (saved) {
-        const savedWords = JSON.parse(saved);
-        savedWords.forEach(savedCard => {
-          const card = words.find(w => w.arabic === savedCard.arabic && w.turkish === savedCard.turkish);
-          if (card) {
-            card.easeFactor = savedCard.easeFactor;
-            card.interval = savedCard.interval;
-            card.dueDate = savedCard.dueDate;
-            card.reviews = savedCard.reviews;
-          }
-        });
-      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(allWords));
     }
   </script>
 </body>
